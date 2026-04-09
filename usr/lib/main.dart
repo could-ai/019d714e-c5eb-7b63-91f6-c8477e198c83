@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'translation_service.dart';
+import 'auth_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Supabase
+  // The CouldAI platform will inject these environment variables if a Supabase project is connected.
+  await Supabase.initialize(
+    url: const String.fromEnvironment('SUPABASE_URL', defaultValue: 'https://placeholder.supabase.co'),
+    anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: 'placeholder'),
+  );
+
   runApp(const TranslationApp());
 }
 
@@ -16,8 +27,53 @@ class TranslationApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const TranslationScreen(),
+      home: const AuthWrapper(),
     );
+  }
+}
+
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _isLoading = true;
+  bool _isAuthenticated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupAuthListener();
+  }
+
+  void _setupAuthListener() {
+    final session = Supabase.instance.client.auth.currentSession;
+    setState(() {
+      _isAuthenticated = session != null;
+      _isLoading = false;
+    });
+
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (mounted) {
+        setState(() {
+          _isAuthenticated = data.session != null;
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    return _isAuthenticated ? const TranslationScreen() : const AuthScreen();
   }
 }
 
@@ -87,12 +143,15 @@ class _TranslationScreenState extends State<TranslationScreen> {
       _sourceLang = _targetLang;
       _targetLang = temp;
       
-      // Optionally swap text as well
       if (_translatedText.isNotEmpty && !_translatedText.startsWith('Error')) {
         _inputController.text = _translatedText;
         _translatedText = '';
       }
     });
+  }
+
+  Future<void> _signOut() async {
+    await Supabase.instance.client.auth.signOut();
   }
 
   @override
@@ -101,13 +160,19 @@ class _TranslationScreenState extends State<TranslationScreen> {
       appBar: AppBar(
         title: const Text('Translator'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _signOut,
+            tooltip: 'Sign Out',
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Language Selection Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -139,8 +204,6 @@ class _TranslationScreenState extends State<TranslationScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            
-            // Input Text Field
             Expanded(
               child: TextField(
                 controller: _inputController,
@@ -156,8 +219,6 @@ class _TranslationScreenState extends State<TranslationScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            
-            // Translate Button
             ElevatedButton(
               onPressed: _isLoading ? null : _translate,
               style: ElevatedButton.styleFrom(
@@ -172,8 +233,6 @@ class _TranslationScreenState extends State<TranslationScreen> {
                   : const Text('Translate', style: TextStyle(fontSize: 16)),
             ),
             const SizedBox(height: 16),
-            
-            // Output Text Area
             Expanded(
               child: Container(
                 padding: const EdgeInsets.all(12),
