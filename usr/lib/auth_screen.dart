@@ -130,6 +130,30 @@ class _AuthScreenState extends State<AuthScreen> {
                       )
                     : Text(_isLogin ? 'Login' : 'Sign Up', style: const TextStyle(fontSize: 16)),
               ),
+              const SizedBox(height: 24),
+              const Text(
+                'Test Users (Quick Fill)',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  for (int i = 1; i <= 4; i++)
+                    ActionChip(
+                      label: Text('User $i'),
+                      onPressed: () {
+                        _emailController.text = 'test$i@example.com';
+                        _passwordController.text = 'password123';
+                      },
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () {
